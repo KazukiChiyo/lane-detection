@@ -59,4 +59,4 @@ Furthermore, a quasi-memorization mechanism makes smooth rendering possible. Fou
 
 
 ### 3. Suggest possible improvements to your pipeline
-* Possible improvements to the pipeline involves approximating curved lines and dynamically readjust region of interest, which can be accomplished with the aid of machine learning.
+* Possible improvements to the pipeline involves approximating curved lines and dynamically readjusting region of interest, which can be accomplished with the aid of machine learning.
