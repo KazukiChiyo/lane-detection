@@ -1,53 +1,62 @@
-# **Finding Lane Lines on the Road** 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
-
-<img src="examples/laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
-
-Overview
+# **Finding Lane Lines on the Road**
 ---
 
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
+**Finding Lane Lines on the Road**
 
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
-
-To complete the project, two files will be submitted: a file containing project code and a file containing a brief write up explaining your solution. We have included template files to be used both for the [code](https://github.com/udacity/CarND-LaneLines-P1/blob/master/P1.ipynb) and the [writeup](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md).The code file is called P1.ipynb and the writeup template is writeup_template.md 
-
-To meet specifications in the project, take a look at the requirements in the [project rubric](https://review.udacity.com/#!/rubrics/322/view)
+The goals / steps of this project are the following:
+* Make a pipeline that finds lane lines on the road
+* Reflect on your work in a written report
 
 
-Creating a Great Writeup
----
-For this project, a great writeup should provide a detailed response to the "Reflection" section of the [project rubric](https://review.udacity.com/#!/rubrics/322/view). There are three parts to the reflection:
+[//]: # (Image References)
 
-1. Describe the pipeline
+[orig]: ./test_images/solidYellowCurve2.jpg "input image"
+[filter]: ./filter_images/solidYellowCurve2.jpg "color filter"
+[canny]: ./canny_images/solidYellowCurve2.jpg "canny edges"
+[roi]: ./roi_images/solidYellowCurve2.jpg "ROI"
+[output]: ./output_images/solidYellowCurve2.jpg "output image"
 
-2. Identify any shortcomings
-
-3. Suggest possible improvements
-
-We encourage using images in your writeup to demonstrate how your pipeline works.  
-
-All that said, please be concise!  We're not looking for you to write a book here: just a brief description.
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup. Here is a link to a [writeup template file](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md). 
-
-
-The Project
 ---
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you should install the starter kit to get started on this project. ##
+### Reflection
 
-**Step 1:** Set up the [CarND Term1 Starter Kit](https://classroom.udacity.com/nanodegrees/nd013/parts/fbf77062-5703-404e-b60c-95b78b2f3f9e/modules/83ec35ee-1e02-48a5-bdb7-d244bd47c2dc/lessons/8c82408b-a217-4d09-b81d-1bda4c6380ef/concepts/4f1870e0-3849-43e4-b670-12e6f2d4b7a7) if you haven't already.
+### 1. Describe your pipeline. As part of the description, explain how you modified the draw_lines() function.
 
-**Step 2:** Open the code in a Jupyter Notebook
+After receiving the test image (or a frame of image from a video clip) a color filter that filters out anything expect for white and yellow is applied. Specifically, the filter uses a RBG color thresholds for white color and HLS color thresholds for yellow color:
+```python
+# color threshold for white and yellow
+white_lo = [100, 100, 200]
+white_hi = [255, 255, 255]
+yellow_lo = [20, 120, 80]
+yellow_hi = [45, 200, 255]
+```
+For example, this is a sample result after the color filter is applied:
 
-You will complete the project code in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out <A HREF="https://www.packtpub.com/books/content/basics-jupyter-notebook-and-python" target="_blank">Cyrille Rossant's Basics of Jupyter Notebook and Python</A> to get started.
+![alt text][filter]
 
-Jupyter is an Ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, use terminal to navigate to your project directory and then run the following command at the terminal prompt (be sure you've activated your Python 3 carnd-term1 environment as described in the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) installation instructions!):
+Now it is possible to convert the image into grayscale and apply a Gaussian filter to blur the image, a preparation step for Canny Edges Detection. After Canny Edges Detection the image looks like this:
 
-`> jupyter notebook`
+![alt text][canny]
 
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
+Our region of interest is only the trapezoid area to the center bottom of the image, so after masking the image with this region of interest, only the contour of two lines are visible:
 
-**Step 3:** Complete the project and submit both the Ipython notebook and the project writeup
+![alt text][roi]
 
+After Hough Transform, the canny edges are interpreted as voted discrete x-y coordinates and it is crucial to turn these scattered points into two lines. We adopt linear regression technique and classify the points into two groups, `left_x, left_y` and `right_x, right_y`, determined by their x-coordinate. This enables linear regression line fit on the two categories:
+
+```python
+left_slope, left_int = np.polyfit(left_x, left_y, 1)
+right_slope, right_int = np.polyfit(right_x, right_y, 1)
+```
+Furthermore, a quasi-memorization mechanism makes smooth rendering possible. Four global variables, `SAVED_LB, SAVED_LT, SAVED_RB, SAVED_RT`, memories and updates the weighted x-coordinates of 4 endpoints so far with a weight of 0.5. After all processes are done, the output image has two marked lane lines on the original input image:
+
+![alt text][output]
+
+
+### 2. Identify potential shortcomings with your current pipeline
+* The pipeline has problem identifying curves, since HSL and RGB filters does not return a robust output with curved lines, and the linear regression technique does not approximate curved lines.
+* Not possible to dynamically adjust region of interest
+
+
+### 3. Suggest possible improvements to your pipeline
+* Possible improvements to the pipeline involves approximating curved lines and dynamically readjusting region of interest, which can be accomplished with the aid of machine learning.
